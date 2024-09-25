@@ -1,0 +1,211 @@
+---
+title: "Milestone 3- Data Preparation & Analysis"
+author: "Kaylynn Mosier"
+date: "2024-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Population Change Dataset
+
+## Data Preparation
+
+```{r}
+# Load libraries
+# plot based on percentage change greater than 25%
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(tidyr)
+library(stringr)
+```
+
+```{r}
+# open excel file
+population_data <- read_excel("C:/Users/kayly/OneDrive/Desktop/MSDS/DSC630/Final Project/Population Change.xlsx",col_names = FALSE)
+
+# Drop City column
+population_data <- population_data[,-5]
+
+# Set column titles
+names(population_data) <- c("City_State", "Population_2020","Population_2021", 
+                            "Population_2022", "Population_2023")
+
+# Delete rows 1 through 4, they were multi-level column titles in original dataset
+population_data <- population_data[-c(1:4),]
+```
+
+```{r}
+# Check number of rows
+nrow(population_data)
+```
+
+```{r}
+# Remove last 4 rows, they include citation information
+population_data <- population_data[-c(19486:19490),]
+```
+
+```{r}
+# Split City_State column into City and State columns
+population_data[c('City', 'State')] <- str_split_fixed(population_data$City_State, ',', 2)
+
+# Drop City_State column, it is no longer needed
+population_data <- population_data[, -1]
+```
+
+```{r}
+# Remove 'city' and 'town' from city names
+library(tm)
+stopwords <- c("city", "town")  # Words to remove
+x = population_data$City # Storing column to search in as variable
+x = removeWords(x, stopwords)  # Remove stop words from column
+
+# Add City column with stop words removed as new column
+population_data$City_cleaned <- x  
+
+# Drop City column
+population_data <- population_data[,-5]
+```
+
+```{r}
+# Check number of NAs
+colSums(is.na(population_data))
+```
+```{r}
+# Drop rows that contain NAs
+population_data <- population_data[complete.cases(population_data), ]
+
+# Confirm rows with NA were dropped
+colSums(is.na(population_data))
+```
+
+
+```{r}
+# Change Population_2020 to numeric datatype
+population_data[, 2] <- sapply(population_data[,2], as.numeric)
+
+# Confirm data type changed
+sapply(population_data, class)
+```
+
+```{r}
+# Add population change column
+population_data <- population_data %>%
+    mutate(popChange_2020_to_2023 = Population_2020 - Population_2023)
+```
+
+## Visualizations
+```{r}
+# Plot average population change by state
+pop_change_data <- population_data %>%
+    group_by(State) %>%
+    summarize(Mean_Change = mean(popChange_2020_to_2023)) %>%
+    ggplot(aes(x = reorder(State, Mean_Change), y = Mean_Change)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    labs(title = "Average Population Change by State",
+         x = "State",
+         y = "Average Population Change") +
+    theme(text = element_text(size = 6))
+print(pop_change_data)
+```
+
+```{r}
+# Find top 10 cities with the highest increase in population
+# Plot top 10 cities with highest increase in population
+top_10 <- population_data %>%
+    arrange(desc(popChange_2020_to_2023)) %>%
+    slice(1:10) %>%
+    ggplot() +
+    geom_bar(aes(x=City_cleaned, y=popChange_2020_to_2023), 
+             stat='identity', fill='steelblue') +
+    labs(title = "Top 10 Population Changes by City",
+         x = "City",
+         y = "Population Change") +
+    theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+    scale_y_continuous(labels = scales::comma)
+
+top_10
+
+```
+
+# Restaurant Locations Data
+## Data Preparation
+
+```{r}
+# Load data
+restaurant_locations <- read_excel("C:/Users/kayly/OneDrive/Desktop/MSDS/DSC630/Final Project/restaurant_locations_final.xlsx")
+```
+
+```{r}
+# Remove dateAdded, dateUpdated, address, country, keys, sourceURLs, website, and postalCode columns
+restaurant_locations <- restaurant_locations %>%
+    select(-c(dateAdded, dateUpdated, address, country, keys, 
+              sourceURLs, websites, postalCode))
+```
+
+
+```{r}
+# Check for missing values
+colSums(is.na(restaurant_locations))
+```
+```{r}
+# Remove row that contains NA
+restaurant_locations <- restaurant_locations[complete.cases(restaurant_locations), ]
+
+# Confirm all NAs were dropped
+colSums(is.na(restaurant_locations))
+```
+
+
+```{r}
+length(unique(restaurant_locations$categories))
+```
+There are way too many categories to do anything with. Looking at the data shows many variations of the same few categories (ex: Fast Food, Fast Food Restaurant, etc). These need to be fixed to reduce the number of categories
+
+```{r}
+library(stringr)
+
+# Check if categories contain 'Fast Food'
+restaurant_locations$Fast_Food <- 
+    grepl('FAST FOOD', toupper(restaurant_locations$categories), fixed=TRUE)
+
+# Check unique values in Fast_Food column
+unique(restaurant_locations$Fast_Food)
+```
+All columns contain 'Fast Food', so all restaurants are fast food restaurants. This column does not add value to analysis so it can be dropped
+
+```{r}
+restaurant_locations <-
+    restaurant_locations %>% 
+    select(-c(categories, Fast_Food))
+```
+
+
+```{r}
+# Create dataframe of state name and state abbreviation
+province <- state.abb
+state <- state.name
+state_abb_name <- data.frame(province, state)
+
+# Join state_abb_name to restaurant_locations on province column
+restaurant_locations <- merge(restaurant_locations, state_abb_name, by='province')
+
+# Drop province column from restaurant_locations
+restaurant_locations <- restaurant_locations %>%
+    select(-c(province))
+```
+
+## Visualizations
+
+# QSR Top 50 Data
+## Visualizations
+
+
+
+
+
+
+
