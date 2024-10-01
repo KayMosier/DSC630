@@ -84,7 +84,7 @@ colSums(is.na(population_data))
 
 ```{r}
 # Change Population_2020 to numeric datatype
-population_data[, 2] <- sapply(population_data[,2], as.numeric)
+population_data[, 1] <- sapply(population_data[,2], as.numeric)
 
 # Confirm data type changed
 sapply(population_data, class)
@@ -200,12 +200,114 @@ restaurant_locations <- restaurant_locations %>%
 
 ## Visualizations
 
+
 # QSR Top 50 Data
+```{r}
+# Load data
+QSR_top_50_2022 <- read_excel("C:/Users/kayly/OneDrive/Desktop/MSDS/DSC630/Final Project/QSR_top_50.xlsx",sheet= 1)
+QSR_top_50_2021 <- read_excel("C:/Users/kayly/OneDrive/Desktop/MSDS/DSC630/Final Project/QSR_top_50.xlsx",sheet= 2)
+```
+
+```{r}
+# Add column for year to each QSR dataset
+QSR_top_50_2021$Year <- c(2021)
+QSR_top_50_2022$Year <- c(2022)
+```
+
+```{r}
+# Change column name, so titles are the same in both datasets
+QSR_top_50_2021 <- rename(QSR_top_50_2021, 
+                          'Rank'='2021 Rank',
+                          'System_Sales_Millions'='2021 US Systemwide Sales Millions',
+                          'Avg_Sales_Per_Unit_Thousands'='2021 Average Sales Per Unit Thousands', 
+                          'Franchised_Units'='2021 Franchised Licensed Units',
+                          'Company_Units'='2021 Company Units',
+                          'Total_Units'='2021 Total Units',
+                          'Total_Change_From_Previous_Year' ='Total Change in Units from 2020')
+
+QSR_top_50_2022 <- rename(QSR_top_50_2022, 
+                          'Rank'= '2022 Rank',
+                          'System_Sales_Millions'='2022 US Systemwide Sales Millions',
+                          'Avg_Sales_Per_Unit_Thousands'='2022 Average Sales Per Unit Thousands', 
+                          'Franchised_Units'='2022 Franchised Licensed Units',
+                          'Company_Units'='2022 Company Units',
+                          'Total_Units'='2022 Total Units',
+                          'Total_Change_From_Previous_Year' ='Total Change in Units from 2021')
+```
+
+
+```{r}
+# Combine both QSR datasets into one
+QSR_top_50 <- merge(QSR_top_50_2021, QSR_top_50_2022, 
+                    by=c('Company', 'Year', 'Category','Rank','System_Sales_Millions',
+                         'Avg_Sales_Per_Unit_Thousands', 'Franchised_Units', 'Company_Units',
+                         'Total_Units','Total_Change_From_Previous_Year'),all=TRUE)
+```
+
+```{r}
+# Check number of NAs
+colSums(is.na(QSR_top_50))
+```
+The two datasets are now fully merged and can be filtered by year.
+
 ## Visualizations
 
+```{r}
+subset_QSR_2022 <- subset(QSR_top_50, Year==2022)
+# Plot Total_change_From_Previous_Year for each restaurant in each year
+unit_change_from_previous_year <- subset_QSR_2022 %>%
+    ggplot(aes(x=reorder(Company, Total_Change_From_Previous_Year),
+               y= Total_Change_From_Previous_Year))+
+    geom_bar(stat="identity", fill='steelblue') +
+    coord_flip() +
+    labs(title = "Unit Change from 2021 to 2022 by Company",
+         x = "Company",
+         y = "Unit Change From Previous Year") +
+    theme(text = element_text(size = 6))
+    
 
+unit_change_from_previous_year
+```
+```{r}
+subset_QSR_2021 <- subset(QSR_top_50, Year==2021)
 
+# Plot Total_change_From_Previous_Year for each restaurant in each year
+unit_change_2020_to_2021 <- subset_QSR_2021 %>%
+    ggplot(aes(x=reorder(Company, Total_Change_From_Previous_Year),
+               y= Total_Change_From_Previous_Year))+
+    geom_bar(stat="identity", fill='steelblue') +
+    coord_flip() +
+    labs(title = "Unit Change from 2020 to 2021 by Company",
+         x = "Company",
+         y = "Unit Change From Previous Year") +
+    theme(text = element_text(size = 6))
+    
 
-
-
-
+unit_change_from_previous_year
+```
+```{r}
+# Plot highest sales by company in 2022
+sales_by_company_2022 <- subset_QSR_2022 %>%
+    ggplot(aes(x=reorder(Company, System_Sales_Millions), y=System_Sales_Millions))+
+    geom_bar(stat="identity", fill='steelblue')+
+    coord_flip()+
+    labs(title='Sales in Millions by Company',
+         x="Company",
+         y="Sales (Millions)") +
+    theme(text = element_text(size = 6))
+sales_by_company_2022
+```
+In 2022, McDonalds had many more sales than other companies
+```{r}
+# Plot highest sales by company in 2021
+sales_by_company_2021 <- subset_QSR_2021 %>%
+    ggplot(aes(x=reorder(Company, System_Sales_Millions), y=System_Sales_Millions))+
+    geom_bar(stat="identity", fill='steelblue')+
+    coord_flip()+
+    labs(title='Sales in Millions by Company',
+         x="Company",
+         y="Sales (Millions)") +
+    theme(text = element_text(size = 6))
+sales_by_company_2021
+```
+Again, McDonald's has the highest sales. For almost all companies, total sales in 2021 was lower than in 2022.
