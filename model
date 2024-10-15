@@ -1,0 +1,59 @@
+```{r}
+#adjusting QSR rows for comparability
+qsr$Company <- str_to_title(qsr$Company)
+
+# filter for companies to combine datasets
+merged_QSR_restaurant <- merge(qsr, restaurant_locations, 
+                               by = "Company", all.x = TRUE)
+
+```
+
+```{r}
+# model both
+library(randomForest)
+
+formula_qsr <- Avg_Sales_Per_Unit_Thousands ~ Company - Total_Units + 
+  Franchised_Units + System_Sales_Millions + Total_Change_From_Previous_Year
+
+model_qsr <- randomForest(formula_qsr, data = merged_QSR_restaurant, 
+                          ntree = 500, importance = TRUE)
+
+
+print(model_qsr)
+
+merged_QSR_restaurant$predicted_sales <- predict(model_qsr, merged_QSR_restaurant)
+
+
+##population
+
+# Define the formula for predicting population change
+formula_pop <- popChange_2020_to_2023 ~ State + City_cleaned
+
+model_pop <- randomForest(formula_pop, data = population_data, 
+                          ntree = 500, importance = TRUE)
+
+
+# View model output
+print(model_pop)
+
+
+# View importance of each feature in predicting population change
+importance(model_pop)
+
+# Predict with the model
+pop_total$predicted_growth <- predict(model_pop, pop_total)
+
+top_restaurants <- merged_QSR_restaurant[order(-merged_QSR_restaurant$predicted_sales), ]
+
+# Select the top-performing restaurants, for example, the top 10
+top_restaurants <- head(top_restaurants, 10)
+print(top_restaurants)
+
+
+# Sort states by predicted population growth
+top_states <- pop_total[order(-pop_total$predicted_growth), ]
+
+# Select the top states for population growth, e.g., the top 10 states
+top_10_states <- head(top_states, 10)
+print(top_10_states)
+```
