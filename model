@@ -1,59 +1,61 @@
-```{r}
-#adjusting QSR rows for comparability
-qsr$Company <- str_to_title(qsr$Company)
+View(df_final)
 
-# filter for companies to combine datasets
-merged_QSR_restaurant <- merge(qsr, restaurant_locations, 
-                               by = "Company", all.x = TRUE)
-
-```
-
-```{r}
-# model both
+# Load libraries
 library(randomForest)
+library(ranger)
 
-formula_qsr <- Avg_Sales_Per_Unit_Thousands ~ Company - Total_Units + 
-  Franchised_Units + System_Sales_Millions + Total_Change_From_Previous_Year
+# Convert 'city_state' and 'Company' to factors
+df_final$city_state <- as.factor(df_final$city_state)
+df_final$Company <- as.factor(df_final$Company)
 
-model_qsr <- randomForest(formula_qsr, data = merged_QSR_restaurant, 
-                          ntree = 500, importance = TRUE)
+formula <- Avg_Sales_Per_Unit_Thousands ~ . - Company - city_state
 
+# Train the random forest model
+model <- ranger(
+  formula = formula,             # target and predictors
+  data = df_final,               # DataFrame 
+  mtry = 3,                      # Number of variables tried at each split
+  importance = 'impurity'        # determine key predictors
+)
 
-print(model_qsr)
+# Print model summary
+print(model)
 
-merged_QSR_restaurant$predicted_sales <- predict(model_qsr, merged_QSR_restaurant)
+# Predict on new data
+predictions <- predict(model, df_final)
 
+#create column of predictions
+df_final$predicted_sales <- predictions$predictions
 
-##population
+# Filter cities with positive population growth
+growing_cities <- df_final[df_final$popChange_2020_to_2023 > 0, ]
 
-# Define the formula for predicting population change
-formula_pop <- popChange_2020_to_2023 ~ State + City_cleaned
+# Sort by highest predicted sales per unit
+growing_cities_sorted <- growing_cities[order(-growing_cities$predicted_sales), ]
 
-model_pop <- randomForest(formula_pop, data = population_data, 
-                          ntree = 500, importance = TRUE)
+# Print the top city/state with highest sales prediction and positive population growth
+print(growing_cities_sorted[1, c("city_state", "predicted_sales", "popChange_2020_to_2023")])
 
+# Filter for cities with positive population growth
+growing_cities <- df_final[df_final$popChange_2020_to_2023 > 0, ]
 
-# View model output
-print(model_pop)
+# Sort by highest predicted sales
+growing_cities_sorted <- growing_cities[order(-growing_cities$predicted_sales), ]
 
+# Select the top 30 cities
+top_50_cities <- head(growing_cities_sorted, 30)
 
-# View importance of each feature in predicting population change
-importance(model_pop)
-
-# Predict with the model
-pop_total$predicted_growth <- predict(model_pop, pop_total)
-
-top_restaurants <- merged_QSR_restaurant[order(-merged_QSR_restaurant$predicted_sales), ]
-
-# Select the top-performing restaurants, for example, the top 10
-top_restaurants <- head(top_restaurants, 10)
-print(top_restaurants)
-
-
-# Sort states by predicted population growth
-top_states <- pop_total[order(-pop_total$predicted_growth), ]
-
-# Select the top states for population growth, e.g., the top 10 states
-top_10_states <- head(top_states, 10)
-print(top_10_states)
-```
+library(ggplot2)
+# bar chart for the top 50 cities
+ggplot(top_50_cities, aes(x = reorder(city_state, -predicted_sales), 
+  fill = Company)) +
+  geom_bar(stat = "count") +
+  coord_flip() +  
+  labs(
+    title = "Top 50 Cities by Company",
+    x = "City/State",
+    y = "Number of Units"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set3") 
