@@ -59,3 +59,65 @@ ggplot(top_50_cities, aes(x = reorder(city_state, -predicted_sales),
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_brewer(palette = "Set3") 
+
+
+#EDITS FOR FINAL CHART
+
+#interactive plot
+unit_change_plot <- plot_ly(
+  data = unit_change_data,
+  x = ~Total_Change_From_Previous_Year,
+  y = ~Company,
+  type = 'bar',
+  orientation = 'h',
+  marker = list(color = 'steelblue')
+) %>%
+  layout(
+    title = "Unit Change from 2021 to 2022 by Company",
+    xaxis = list(title = "Unit Change From Previous Year"),
+    yaxis = list(title = "Company"),
+    margin = list(l = 100)  # Adjust left margin for readability
+  )
+
+unit_change_plot
+
+library(dplyr)
+library(highcharter)
+library(RColorBrewer)
+
+# count units per company and city-state
+top_50_data <- top_50_cities %>%
+  count(city_state, Company, name = "Number_of_Units") %>%
+  arrange(desc(Number_of_Units))
+
+# interactive stacked bar chart
+highchart() %>%
+  hc_chart(type = "bar") %>%
+  hc_title(text = "Top 50 Cities by Company") %>%
+  hc_xAxis(categories = unique(top_50_data$city_state), title = list(text = "City/State")) %>%
+  hc_yAxis(title = list(text = "Number of Units")) %>%
+  hc_plotOptions(
+    bar = list(
+      stacking = "normal",  # Stacks bars by company
+      dataLabels = list(enabled = TRUE)
+    )
+  ) %>%
+  #series for each company
+  hc_add_series_list(
+    lapply(unique(top_50_data$Company), function(comp) {
+      list(
+        name = comp,
+        data = top_50_data %>% 
+          filter(Company == comp) %>% 
+          pull(Number_of_Units)
+      )
+    })
+  ) %>%
+  hc_tooltip(
+    shared = TRUE,
+    pointFormat = "<b>{point.category}</b><br>{series.name}: {point.y}"
+  ) %>%
+  hc_legend(reversed = TRUE) %>%
+  hc_colors(colorRampPalette(brewer.pal(9, "Set3"))(length(unique(top_50_data$Company))))
+
+
